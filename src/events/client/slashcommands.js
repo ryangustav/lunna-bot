@@ -3,7 +3,7 @@ module.exports = {
     async execute(interaction, client) {
         // isChatInputCommand
         if (interaction.isChatInputCommand()) {
- 
+  
             // comando utilizado
             const command = interaction.client.commands.get(interaction.commandName);
 

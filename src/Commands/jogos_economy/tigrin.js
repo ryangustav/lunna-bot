@@ -70,21 +70,19 @@ if (winningSymbol === '<:SpecialRoles:1055063301148639252>') {
 multiply = multiply.SpecialRole  * winCount;
 valor = valor * multiply;
 lunar.coins += Math.floor(valor);
-lunar.save();
 } else if (winningSymbol === '<:gold_donator:1053256617518440478>') {
 multiply = multiply.GoldDonator  * winCount;
 valor = valor * multiply;
 lunar.coins += Math.floor(valor);
-lunar.save();
 } else if (isWinner === true) {
 multiply = multiply.Other * winCount
 valor = valor * multiply;
 lunar.coins += Math.floor(valor);
-lunar.save();
 } else if (isWinner === false) {
 multiply = 1.00
 }
 
+lunar.save()
 const row = new ActionRowBuilder();
 const button = new ButtonBuilder()
 .setCustomId(`Play-again`)
@@ -106,7 +104,7 @@ ${tigrin_random[6]} ${tigrin_random[7]} ${tigrin_random[8]}
 ↗️=====↖️`);
 
 const message = await interaction.reply({ embeds: [embed], components: [row]}).then(async msg => {
-const collector = interaction.channel.createMessageComponentCollector() 
+const collector = interaction.channel.createMessageComponentCollector({ time: 300000 }) 
 collector.on('collect', async int => {
 int.deferUpdate();
 if (int.user.id !== interaction.user.id) return
@@ -195,6 +193,29 @@ ${game.tigrin_random[6]} ${game.tigrin_random[7]} ${game.tigrin_random[8]}
 ↗️=====↖️`);
 
 interaction.editReply({embeds: [embed] })
+})
+collector.on('end', int => {
+
+    const row = new ActionRowBuilder();
+    const button = new ButtonBuilder()
+    .setCustomId(`Play-again`)
+    .setLabel('Jogar novamente')
+    .setEmoji('🔄')
+    .setDisabled(true)
+    .setStyle('Primary');
+    row.addComponents(button);
+
+    const embed = new EmbedBuilder()
+.setTitle(client.user.username + ' | Tigrin Game🍎')
+.setColor("#be00e8")
+.setDescription(`
+<:Money:1051978255827222590> | Ganhos: **${Math.floor(valor * multiply)}** Lunar coins
+<:gold_donator:1053256617518440478> | Multiplicador: ${winningSymbol} ${multiply.toFixed(2)}
+
+<:bl_info:1053256877896634439> Para jogar novamente use </tigrin:1237842905876398212>
+`);
+
+interaction.editReply({embeds: [embed], components: [row] })
 })
 })
 }
