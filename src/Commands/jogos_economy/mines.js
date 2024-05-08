@@ -3,13 +3,6 @@ const LunarModel = require("../../database/schema/coins_database.js");
 const dailyCollect = require('../../database/schema/daily_schema.js');
 const transactionsModel = require('../../database/schema/transactions.js')
 
-
-
-function parseButtonId(id) {
-    const isBomb = id.split('-')[3];
-    return isBomb === 'true';
-  }
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("mines")
@@ -18,7 +11,7 @@ module.exports = {
         .addNumberOption(option => 
             option
             .setName("valor")
-            .setDescription("Qual valor que você ira enviar?")
+            .setDescription("Qual valor que você ira apostar?")
             .setRequired(true)
         ),
     async execute(interaction, client) {
@@ -75,12 +68,12 @@ module.exports = {
           .setTitle(client.user.username + ' | Mines Game💣')
           .setColor("#be00e8")
           .setDescription(`
-          Multiplicador: ${multiply.toFixed(2)}
-          Ganhos: **${Math.floor(valor * multiply)}** Lunar coins
+          <:gold_donator:1053256617518440478> | Multiplicador: ${multiply.toFixed(2)}
+          <:Money:1051978255827222590> | Ganhos: **${Math.floor(valor * multiply)}** Lunar coins
           `);
        
         const message = await interaction.reply({ embeds: [embed], components: buttonRows }).then(msg => {
-    
+
         const collector = interaction.channel.createMessageComponentCollector();
 
         collector.on('collect', int => {
@@ -108,8 +101,8 @@ module.exports = {
             .setTitle(client.user.username + ' | Mines Game💣')
             .setColor("#be00e8")
             .setDescription(`
-            Multiplicador: ${multiply.toFixed(2)}
-            Ganhos: **${Math.floor(valor * multiply)}** Lunar coins
+            <:gold_donator:1053256617518440478> | Multiplicador: ${multiply.toFixed(2)}
+            <:Money:1051978255827222590> | Ganhos: **${Math.floor(valor * multiply)}** Lunar coins
 
             🎉Parabéns ${interaction.user}, você ganhou **${Math.floor(valor * multiply)}** Lunar coins🎉
             `);
@@ -157,10 +150,18 @@ module.exports = {
     .setDisabled(true)
     .setStyle('Success');
     idsArray.push(`finalizar-9-9-9-9`)
+     const embed = new EmbedBuilder()
+    .setTitle(client.user.username + ' | Mines Game💣')
+    .setColor("#be00e8")
+    .setDescription(`
+    <:gold_donator:1053256617518440478> | Multiplicador: ${multiply.toFixed(2)}
+    <:Money:1051978255827222590> | Percas: **${Math.floor(valor)}** Lunar coins
 
+    <:naoJEFF:1109179756831854592> Você perdeu **${Math.floor(valor)}** lunar coins <:naoJEFF:1109179756831854592>
+    `);
     row2.addComponents(button);
     otherRow.push(row2)
-    interaction.editReply({ components: otherRow })
+    interaction.editReply({ embeds: [embed], components: otherRow })
         
     } else {
         multiply += 0.25;
@@ -217,8 +218,9 @@ module.exports = {
     .setTitle(client.user.username + ' | Mines Game💣')
     .setColor("#be00e8")
     .setDescription(`
-    Multiplicador: ${multiply.toFixed(2)}
-    Ganhos: **${Math.floor(valor * multiply)}** Lunar coins
+    <:gold_donator:1053256617518440478> | Multiplicador: ${multiply.toFixed(2)}
+    <:Money:1051978255827222590> | Ganhos: **${Math.floor(valor)}** Lunar coins
+
     `);
     interaction.editReply({embeds: [embed], components: otherRow2 })
     }
