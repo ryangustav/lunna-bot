@@ -35,6 +35,7 @@ dailyRestart();
 client.login(process.env.token);
 
 // unhandledRejection
+
 process.on('unhandledRejection', (reason, promise) => {
   console.log(`🚫 Erro Detectado:\n\n${reason.stack}`);
 });

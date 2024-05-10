@@ -15,6 +15,7 @@ module.exports = {
             .setRequired(true)
         ),
     async execute(interaction, client) {
+        interaction.deferReply();
         const valor = interaction.options.getNumber('valor');
         const daily = await dailyCollect.findOne({ user_id: interaction.user.id });
         const lunar = await LunarModel.findOne({ user_id: interaction.user.id });
@@ -72,11 +73,12 @@ module.exports = {
           <:Money:1051978255827222590> | Ganhos: **${Math.floor(valor * multiply)}** Lunar coins
           `);
        
-        const message = await interaction.reply({ embeds: [embed], components: buttonRows }).then(msg => {
+        const message = await interaction.channel.send({ embeds: [embed], components: buttonRows }).then(msg => {
 
         const collector = interaction.channel.createMessageComponentCollector();
 
         collector.on('collect', int => {
+        if (int.message.id !== msg.id) return
         int.deferUpdate()
 
         if (int.customId === "finalizar-9-9-9-9") {
@@ -106,7 +108,7 @@ module.exports = {
 
             🎉Parabéns ${interaction.user}, você ganhou **${Math.floor(valor * multiply)}** Lunar coins🎉
             `);
-            interaction.editReply({embeds: [embed], components: [rows] })
+            msg.edit({embeds: [embed], components: [rows] })
             return
         }
         const ids = int.customId.split('-')
@@ -161,7 +163,7 @@ module.exports = {
     `);
     row2.addComponents(button);
     otherRow.push(row2)
-    interaction.editReply({ embeds: [embed], components: otherRow })
+    msg.edit({ embeds: [embed], components: otherRow })
         
     } else {
         multiply += 0.25;
@@ -219,10 +221,10 @@ module.exports = {
     .setColor("#be00e8")
     .setDescription(`
     <:gold_donator:1053256617518440478> | Multiplicador: ${multiply.toFixed(2)}
-    <:Money:1051978255827222590> | Ganhos: **${Math.floor(valor)}** Lunar coins
+    <:Money:1051978255827222590> | Ganhos: **${Math.floor(valor * multiply.toFixed(2))}** Lunar coins
 
     `);
-    interaction.editReply({embeds: [embed], components: otherRow2 })
+    msg.edit({embeds: [embed], components: otherRow2 })
     }
         })
         });

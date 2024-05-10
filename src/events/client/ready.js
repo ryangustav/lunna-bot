@@ -8,7 +8,7 @@ module.exports = {
         console.log(`[LOG] Estou online na aplicação: ${client.user.username}`);
 
         // status do bot
-        const textoStatus = 'Lunna bot';
+        const textoStatus = '💸 Se divirta comigo';
         client.user.setActivity(textoStatus, {
             type: ActivityType.Custom
         });

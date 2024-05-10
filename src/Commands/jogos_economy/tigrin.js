@@ -17,6 +17,7 @@ module.exports = {
             .setRequired(true)
         ),
     async execute(interaction, client) {
+        interaction.deferReply();
         const valor_base = interaction.options.getNumber('valor');
         let valor = valor_base;
         const daily = await dailyCollect.findOne({ user_id: interaction.user.id });
@@ -103,9 +104,10 @@ ${tigrin_random[3]} ${tigrin_random[4]} ${tigrin_random[5]}
 ${tigrin_random[6]} ${tigrin_random[7]} ${tigrin_random[8]}
 ↗️=====↖️`);
 
-const message = await interaction.reply({ embeds: [embed], components: [row]}).then(async msg => {
+const message = await interaction.channel.send({ embeds: [embed], components: [row]}).then(async msg => {
 const collector = interaction.channel.createMessageComponentCollector({ time: 300000 }) 
 collector.on('collect', async int => {
+if (int.message.id !== msg.id) return
 int.deferUpdate();
 if (int.user.id !== interaction.user.id) return
 if (valor === 0 ) valor = valor_base;
@@ -215,7 +217,7 @@ collector.on('end', int => {
 <:bl_info:1053256877896634439> Para jogar novamente use </tigrin:1237842905876398212>
 `);
 
-interaction.editReply({embeds: [embed], components: [row] })
+msg.edit({embeds: [embed], components: [row] })
 })
 })
 }

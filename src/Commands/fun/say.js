@@ -3,7 +3,7 @@ const { SlashCommandBuilder } = require("discord.js");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("say")
-        .setDescription("「📡」Faça eu falar algo")
+        .setDescription("「🎉」Faça eu falar algo")
         .setDMPermission(false)
         .addStringOption(option => 
             option
