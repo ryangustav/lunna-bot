@@ -8,7 +8,6 @@ module.exports = {
     async execute(interaction, client) {
 const palavra = word.getRandomWord()
 const palavra_letra = palavra.split('')
-let letras = ''
 let lines = ''
 let tentativas = 0;
 let maximo = 6;
@@ -20,34 +19,26 @@ i++
 lines += '-'
 
 }
-
+ 
+console.log(palavra)
 function testar_letra(letra) {
-const teste = palavra_letra.find(l => l.normalize('NFD').replace(/[\u0300-\u036F]/g, '') === letra.normalize('NFD').replace(/[\u0300-\u036F]/g, ''))
-const teste2 = teste ? true : false
-if (teste2 === false){
-letras_erradas += `${letra} `
-return teste ? true : false
-}
-if (teste2 === true){
-const a = palavra_letra.findIndex(l => l.normalize('NFD').replace(/[\u0300-\u036F]/g, '') === letra.normalize('NFD').replace(/[\u0300-\u036F]/g, ''));
-palavra_letra[a] = '-'
-const teste3 = palavra_letra.find(l => l.normalize('NFD').replace(/[\u0300-\u036F]/g, '') === letra.normalize('NFD').replace(/[\u0300-\u036F]/g, ''))
-const teste4 = teste3 ? true : false
-if (teste4 === true){
-const a = palavra_letra.findIndex(l => l.normalize('NFD').replace(/[\u0300-\u036F]/g, '') === letra.normalize('NFD').replace(/[\u0300-\u036F]/g, ''));
-palavra_letra[a] = '-'
-lines = lines.split('');
-lines[a] = letra;
-lines = lines.toString().replace(',', '').replace(',', '').replace(',', '').replace(',', '')
-    console.log(lines)
+    const normalizedLetra = letra.normalize('NFD').replace(/[\u0300-\u036F]/g, '');
+    const index = palavra_letra.findIndex(l => l.normalize('NFD').replace(/[\u0300-\u036F]/g, '') === normalizedLetra);
+  
+    if (index === -1) {
+      letras_erradas += `${letra} `;
+      return false;
     }
-lines = lines.split('');
-lines[a] = letra;
-lines = lines.toString().replace(',', '').replace(',', '').replace(',', '').replace(',', '')
-}
+  
+    palavra_letra[index] = '-';
+    lines = lines.split('');
+    lines[index] = letra;
+    lines = lines.join(''); 
+  
 
-return teste ? true : false;
-}
+    return true;
+  }
+  
 
 function testar_palavra(palavras) {
 if (palavras.normalize('NFD').replace(/[\u0300-\u036F]/g, '') === palavra.normalize('NFD').replace(/[\u0300-\u036F]/g, '')) {
@@ -184,6 +175,7 @@ inte.reply({ content: `<:naoJEFF:1109179756831854592> | A palavra ${palavras} es
         inte.deferUpdate()
         let letra = inte.fields.getTextInputValue("chute");
         let verify = testar_letra(letra)
+        testar_letra(letra)
     if (verify === false) tentativas++;
     if (tentativas === maximo) {
     const row = new Discord.ActionRowBuilder()
