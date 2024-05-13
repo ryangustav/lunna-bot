@@ -1,0 +1,76 @@
+const { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } = require("@google/generative-ai");
+const genAI = new GoogleGenerativeAI(process.env.gemini_token);
+const fs = require('fs').promises;
+
+async function generative(prompt, user) {
+    const personalityFilePath = __dirname + '../../../personality.txt';
+    const ask = __dirname + '../../../asks-respostas.txt';
+    const personalityContent = await fs.readFile(personalityFilePath, 'utf-8');
+    const personalityLines = personalityContent.split('\n');
+
+  
+  try {  
+    const safetySettings = [
+      {
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+      },
+      {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+      {
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+      },
+      {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+    ];
+  
+    const generationConfig = {
+      maxOutputTokens: 750,
+  };
+  const model = genAI.getGenerativeModel({ model: "gemini-pro", safetySettings, generationConfig});
+  
+  const chat = model.startChat({
+      history: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `${personalityLines}\n Cumprimente o usuário com uma saudação e depois seu nome, que é: <@${user}>.`,
+            },
+          ],
+        },
+        {
+          role: "model",
+          parts: [
+            {
+              text: `Vou cumprimentar o usuário com seu nome: <@${user}>. Também limitarei todas as minhas respostas a 2.000 caracteres ou menos, independentemente do que você disser. Sinta-se à vontade para me perguntar qualquer coisa! `,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        maxOutputTokens: 750,
+      },
+    });
+  
+  const result = await chat.sendMessage(prompt);
+  const response = await result.response;
+  
+  const responseLength = response.text().length;
+  if (responseLength > 2000) {
+    response.text = response.text().substring(0, 1928 - "... \n\n".length) + "... \n\n*A resposta foi interrompida devido ao limite de caracteres do Discords de 2.000*";
+  }
+  const resposta = await response.text()
+  fs.appendFile(ask, `${prompt} - ${resposta}\n`)
+  return resposta
+} catch(err) {
+return err
+}
+}
+
+module.exports = generative;
