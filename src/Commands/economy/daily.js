@@ -22,7 +22,7 @@ module.exports = {
 
 
     if (!lunar_coins) {
-    await LunarModel.create({ user_id: interaction.user.id, coins: random_daily })
+    await LunarModel.create({ user_id: interaction.user.id, coins: random_daily, isVip: false, prompts_used: 0 })
     } else {
     lunar_coins.coins += random_daily;
     lunar_coins.save();

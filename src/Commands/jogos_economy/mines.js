@@ -40,8 +40,8 @@ module.exports = {
             totalMines++
             id = true
             }
-            if (i === 4 && j === 4 && totalMines === 2) return id = true
-            if (i === 3 && j === 3 && totalMines === 1) return id = true
+            if (i === 3 && j === 3 && totalMines === 2) return id = true
+            if (i === 2 && j === 2 && totalMines === 1) return id = true
             const button = new ButtonBuilder()
               .setCustomId(`button-${i}-${j}-${id}`)
               .setLabel(' ')
