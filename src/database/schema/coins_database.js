@@ -12,6 +12,9 @@ const lunar_coins = new Schema({
   prompts_used: {
     type: Number, default: 0,
   },
+  image_prompts_used: {
+    type: Number, default: 0,
+  },
 })
 
 const LunarModel = mongoose.model("LunarCoins", lunar_coins)

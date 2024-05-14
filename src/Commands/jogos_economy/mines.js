@@ -6,7 +6,7 @@ const transactionsModel = require('../../database/schema/transactions.js')
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("mines")
-        .setDescription("「💰」Jogue mines")
+        .setDescription("「💰」Jogue o jogo do mines")
         .setDMPermission(false)
         .addNumberOption(option => 
             option
@@ -15,7 +15,7 @@ module.exports = {
             .setRequired(true)
         ),
     async execute(interaction, client) {
-        interaction.deferReply();
+        
         const valor = interaction.options.getNumber('valor');
         const daily = await dailyCollect.findOne({ user_id: interaction.user.id });
         const lunar = await LunarModel.findOne({ user_id: interaction.user.id });
@@ -23,7 +23,7 @@ module.exports = {
         if (!daily || daily.daily_collected === false) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você precisa coletar seu daily antes, usando </daily:1237466106093113434>` })
         if (!lunar || lunar.coins < valor) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você não tem lunar coins o suficiente para fazer esta aposta!`})
         if (valor < 50) return interaction.reply({ content: '<:naoJEFF:1109179756831854592> | Valor mínimo para apostar é 50!', ephemeral: true });
-    
+        interaction.deferUpdate();
         
         lunar.coins -= Math.floor(valor);
         lunar.save();

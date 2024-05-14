@@ -29,6 +29,22 @@ function testar_letra(letra) {
       letras_erradas += `${letra} `;
       return false;
     }
+    
+    palavra_letra[index] = '-';
+    lines = lines.split('');
+    lines[index] = letra;
+    lines = lines.join(''); 
+    segundo_testar_letra(letra);
+
+    return true;
+  }
+  function segundo_testar_letra(letra) {
+    const normalizedLetra = letra.normalize('NFD').replace(/[\u0300-\u036F]/g, '');
+    const index = palavra_letra.findIndex(l => l.normalize('NFD').replace(/[\u0300-\u036F]/g, '') === normalizedLetra);
+  
+    if (index === -1) {
+      return false;
+    }
   
     palavra_letra[index] = '-';
     lines = lines.split('');
@@ -38,7 +54,6 @@ function testar_letra(letra) {
 
     return true;
   }
-  
 
 function testar_palavra(palavras) {
 if (palavras.normalize('NFD').replace(/[\u0300-\u036F]/g, '') === palavra.normalize('NFD').replace(/[\u0300-\u036F]/g, '')) {
@@ -175,7 +190,7 @@ inte.reply({ content: `<:naoJEFF:1109179756831854592> | A palavra ${palavras} es
         inte.deferUpdate()
         let letra = inte.fields.getTextInputValue("chute");
         let verify = testar_letra(letra)
-        testar_letra(letra)
+  
     if (verify === false) tentativas++;
     if (tentativas === maximo) {
     const row = new Discord.ActionRowBuilder()
