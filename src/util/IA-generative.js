@@ -17,8 +17,8 @@ async function generative(prompt, user) {
         { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
       ];
       
-      const generationConfig = { maxOutputTokens: 750 };
-      const model = genAI.getGenerativeModel({ model: "gemini-pro", safetySettings, generationConfig });
+      const generationConfig = { maxOutputTokens: 750, temperature: 0.3 };
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", safetySettings, generationConfig });
       
       const chat = model.startChat({
         history: [
@@ -37,7 +37,7 @@ async function generative(prompt, user) {
             ],
           },
         ],
-        generationConfig: { maxOutputTokens: 750 },
+        generationConfig: { maxOutputTokens: 750, temperature: 0.3 },
       });
       
       const result = await chat.sendMessage(prompt);

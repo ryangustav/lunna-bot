@@ -95,7 +95,13 @@ bolinhas_string += '<:soda:1239315444163149865>'
 
 }
 }
-
+if (!transactions_payer) {
+    transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * 2} jogando o jogo do copo`}], transactions_ids: [id]})
+    } else {
+    transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * 2} jogando o jogo do copo`})
+    transactions_payer.transactions_ids.push(id)
+    transactions_payer.save()
+}
 
     const copo = trues[0]
     const row = new ActionRowBuilder()
@@ -149,7 +155,14 @@ if (trues[1] === 'false') {
         }
         }
         
-        
+        if (!transactions_payer) {
+            transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Perdeu ${valor} jogando o jogo do copo`}], transactions_ids: [id]})
+            } else {
+            transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Perdeu ${valor} jogando o jogo do copo`})
+            transactions_payer.transactions_ids.push(id)
+            transactions_payer.save()
+}
+
             const copo = trues[0]
             const row = new ActionRowBuilder()
             .addComponents(

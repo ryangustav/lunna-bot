@@ -15,7 +15,8 @@ module.exports = {
             .addBooleanOption(option => 
                 option
                 .setName('ativo')
-                .setDescription('Se o sistema esta ativo ou não')   
+                .setDescription('Se o sistema esta ativo ou não')  
+                .setRequired(true)
             )
         ),
     async execute(interaction, client) {
@@ -35,6 +36,16 @@ return RoleModel.create({ guild_id: interaction.guild.id, enable: true, roles: {
 guildRoles.enable = true
 guildRoles.save();
 interaction.reply({ content: `<:simJEFF:1109206099346862140> | Pronto! O sistema de level no servidor foi ativado`, ephemeral: true })
+}
+if (ativo === false) {
+    if (!guildRoles) {
+    interaction.reply({ content: `<:simJEFF:1109206099346862140> | Pronto! O sistema de level no servidor foi desativado`, ephemeral: true })
+    return RoleModel.create({ guild_id: interaction.guild.id, enable: true, roles: {} })
+    
+    }
+    guildRoles.enable = false
+    guildRoles.save();
+    interaction.reply({ content: `<:simJEFF:1109206099346862140> | Pronto! O sistema de level no servidor foi desativado`, ephemeral: true })
 }
 }
 

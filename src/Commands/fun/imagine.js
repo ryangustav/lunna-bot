@@ -2,8 +2,8 @@ const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Event
 const LunarModel = require("../../database/schema/coins_database.js")
 const { createProdia } = require('prodia')
 const bania = require("../../database/schema/banned_user.js")
-const fs = require('fs')
-const request = require('request')
+const translate = require('translate-google')
+
 const prodia = createProdia({
 	apiKey: "69eddfe6-114b-41c3-8781-393bef804a89",
 });
@@ -59,14 +59,15 @@ module.exports = {
     if (user.image_prompts_used === 3 && user.isVip === false) return interaction.editReply({ content: `<:naoJEFF:1109179756831854592> | Você atingiu o limite de prompts gratis diarios`})
     if (user.image_prompts_used === 10 && user.isVip === true) return interaction.editReply({ content: `<:naoJEFF:1109179756831854592> | Você atingiu o limite de prompts vip diario`})
       
-
+    const translated_prompt = await translate(prompt, {to: 'en'});
+    
     const imagine = await prodia.generate({
-		prompt: prompt,
+		prompt: translated_prompt,
         style_preset: preset,
         model: 'absolutereality_v181.safetensors [3d9d4d2b]',
 	});
       
-    const prodiaa = await prodia.wait(imagine);
+const prodiaa = await prodia.wait(imagine);
 user.image_prompts_used += 1;
 user.save()
 interaction.editReply({ files: [prodiaa.imageUrl], content: `${interaction.user} Sua imagem ficou pronta!\n<:file:1052384025089687614> Prompt: ${prompt}\n<:config:1052355072782254152> Preset: ${preset}`})

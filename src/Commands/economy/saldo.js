@@ -12,7 +12,7 @@ module.exports = {
     const lunnar_coins_verify = await LunarModel.findOne({ user_id: interaction.user.id });
     if (!lunnar_coins_verify) await LunarModel.create({ user_id: interaction.user.id, coins: 0, isVip: false, prompts_used: 0 })
        
-    const lunnar_coins = lunnar_coins_verify ?  lunnar_coins_verify : 0;
+    const lunnar_coins = await LunarModel.findOne({ user_id: interaction.user.id });
 
         await interaction.reply({
             content: `💰 | Você possui **${lunnar_coins.coins}** lunar coins.`,

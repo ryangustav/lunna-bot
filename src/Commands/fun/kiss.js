@@ -22,16 +22,6 @@ module.exports = {
   if (user.id === interaction.user.id) mensagem = `<:SpecialRoles:1055063301148639252> ${interaction.user} beijou... a si mesmo?!`
 
 
-const row = new Discord.ActionRowBuilder()
-.addComponents(
-new Discord.ButtonBuilder()
-.setCustomId(`user_reply`)
-.setLabel(`Retribuir`)
-.setStyle(`Primary`)
-.setEmoji(`<:SpecialRoles:1055063301148639252>`),
-);
-
-
 const embed = new Discord.EmbedBuilder()
 .setDescription(`${mensagem}`)
 .setColor("#be00e8")
@@ -39,7 +29,9 @@ const embed = new Discord.EmbedBuilder()
 
 const msg = await interaction.channel.send({
 embeds: [embed],
-components: [row]
 })
+setTimeout(() => {
+    msg.delete()
+    }, 15000)
     },
 };

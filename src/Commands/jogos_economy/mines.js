@@ -19,11 +19,14 @@ module.exports = {
         const valor = interaction.options.getNumber('valor');
         const daily = await dailyCollect.findOne({ user_id: interaction.user.id });
         const lunar = await LunarModel.findOne({ user_id: interaction.user.id });
-    
+        const transactions_payer = await transactionsModel.findOne({ user_id: interaction.user.id })
+        const id = Math.floor(Math.random() * (999999999 - 111111111 + 1) + 111111111)
+        const timestamp = Math.floor(Date.now() / 1000);
+
         if (!daily || daily.daily_collected === false) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você precisa coletar seu daily antes, usando </daily:1237466106093113434>` })
         if (!lunar || lunar.coins < valor) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você não tem lunar coins o suficiente para fazer esta aposta!`})
         if (valor < 50) return interaction.reply({ content: '<:naoJEFF:1109179756831854592> | Valor mínimo para apostar é 50!', ephemeral: true });
-        interaction.deferUpdate();
+        //interaction.deferUpdate();
         
         lunar.coins -= Math.floor(valor);
         lunar.save();
@@ -97,7 +100,13 @@ module.exports = {
             idsArray.push(`finalizar-9-9-9-9`)
             rows.addComponents(button);
 
-
+            if (!transactions_payer) {
+              transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * multiply.toFixed(2)} jogando mines`}], transactions_ids: [id]})
+              } else {
+              transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * multiply.toFixed(2)} jogando mines`})
+              transactions_payer.transactions_ids.push(id)
+              transactions_payer.save()
+              }
 
             const embed = new EmbedBuilder()
             .setTitle(client.user.username + ' | Mines Game💣')
@@ -144,6 +153,13 @@ module.exports = {
         }
     otherRow.push(row)
     }
+    if (!transactions_payer) {
+      transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Perdeu ${valor} jogando mines`}], transactions_ids: [id]})
+      } else {
+      transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Perdeu ${valor} jogando mines`})
+      transactions_payer.transactions_ids.push(id)
+      transactions_payer.save()
+      }
     const row2 = new ActionRowBuilder();
     const button = new ButtonBuilder()
     .setCustomId(`finalizar-9-9-9-9`)
@@ -206,6 +222,9 @@ module.exports = {
         }
     otherRow2.push(row)
     }
+
+
+
     const row2 = new ActionRowBuilder();
     const button = new ButtonBuilder()
     .setCustomId(`finalizar-9-9-9-9`)

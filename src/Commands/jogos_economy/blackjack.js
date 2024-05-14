@@ -260,12 +260,33 @@ inline: false
     if (dealer_soma < 14) dealer_push()
      await end_game();
             if (win_lose === "win") {
+                if (!transactions_payer) {
+                    transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * 2} jogando blackjack`}], transactions_ids: [id]})
+                    } else {
+                    transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * 2} jogando blackjack`})
+                    transactions_payer.transactions_ids.push(id)
+                    transactions_payer.save()
+        }
         lunar.coins += Math.floor(valor * 2);
         lunar.save();
      } else if (win_lose === "bet") {
+        if (!transactions_payer) {
+            transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Empatou jogando blackjack e recebeu extorno de ${valor}`}], transactions_ids: [id]})
+            } else {
+            transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Empatou jogando blackjack e recebeu extorno de ${valor}`})
+            transactions_payer.transactions_ids.push(id)
+            transactions_payer.save()
+}
         lunar.coins += Math.floor(valor);
         lunar.save();
      } else if (win_lose === "double") {
+        if (!transactions_payer) {
+            transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * 3} jogando blackjack`}], transactions_ids: [id]})
+            } else {
+            transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * 3} jogando blackjack`})
+            transactions_payer.transactions_ids.push(id)
+            transactions_payer.save()
+}
         lunar.coins += Math.floor(valor * 3);
         lunar.save();
      }

@@ -22,7 +22,11 @@ module.exports = {
         let valor = valor_base;
         const daily = await dailyCollect.findOne({ user_id: interaction.user.id });
         const lunar = await LunarModel.findOne({ user_id: interaction.user.id });
-    
+        const transactions_payer = await transactionsModel.findOne({ user_id: interaction.user.id })
+        const id = Math.floor(Math.random() * (999999999 - 111111111 + 1) + 111111111)
+        const timestamp = Math.floor(Date.now() / 1000);
+
+        
         if (!daily || daily.daily_collected === false) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você precisa coletar seu daily antes, usando </daily:1237466106093113434>` })
         if (!lunar || lunar.coins < valor) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você não tem lunar coins o suficiente para fazer esta aposta!`})
         if (valor < 50) return interaction.reply({ content: '<:naoJEFF:1109179756831854592> | Valor mínimo para apostar é 50!', ephemeral: true });
@@ -82,7 +86,15 @@ lunar.coins += Math.floor(valor);
 } else if (isWinner === false) {
 multiply = 1.00
 }
-
+if (isWinner === true) {
+  if (!transactions_payer) {
+    transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * multiply.toFixed(2)} jogando tigrin`}], transactions_ids: [id]})
+    } else {
+    transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * multiply.toFixed(2)} jogando tigrin`})
+    transactions_payer.transactions_ids.push(id)
+    transactions_payer.save()
+    }
+}
 lunar.save()
 const row = new ActionRowBuilder();
 const button = new ButtonBuilder()
