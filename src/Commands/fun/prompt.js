@@ -57,9 +57,13 @@ if (resposta.toString().includes('Candidate was blocked due to SAFETY')) {
     )
     ban.prompts_sexuais += 1;
     ban.save();
-    client.channels.cache.get('1053336886355169320').send({ content: `⚠️ | O usuario ${interaction.user.username} (\`${interaction.user.id}\`) Foi pego tentando usar prompts sexuais/gore!`, components: 'row'})
-    resposta = resposta.toString().replace('[GoogleGenerativeAI Error]:', '').replace('Candidate was blocked due to SAFETY', 'O usuario foi bloqueado por motivos de SEGURANÇA')
+    client.channels.cache.get('1240122114090995792').send({ content: `⚠️ | O usuario ${interaction.user.username} (\`${interaction.user.id}\`) Foi pego tentando usar prompts sexuais/gore!`, components: 'row'})
+    resposta = resposta = 'Sou uma IA com base em texto, então não consigo te ajudar com isso. 😊'
     }
+
+    if (resposta.toString().includes('[GoogleGenerativeAI Error]')) { 
+        resposta = 'Sou uma IA com base em texto, então não consigo te ajudar com isso. 😊 '
+        }
 
 
 user.prompts_used += 1;

@@ -3,10 +3,10 @@ const bania = require("../../database/schema/banned_user.js");
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
-if (interaction.user.id !== '852880352313868298') return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você não tem permissão para isso!`})
 if (!interaction.isButton()) return;
 const verify = interaction.customId.split('-')
 if (verify[0] !== 'bania') return;
+if (interaction.user.id !== '852880352313868298') return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você não tem permissão para isso!`})
 const user = client.users.cache.get(verify[1]);
 const verifydb = await bania.findOne({ user_id: user.id })
 if (!verifydb) await bania.create({ user_id: user.id, isBanned: false, prompts_sexuais: 0 })

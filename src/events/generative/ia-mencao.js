@@ -15,6 +15,7 @@ module.exports = {
     const verify_ban = await bania.findOne({ user_id: message.author.id })
 
     //Verificações
+    if (!me) return;
     if (message.author.bot === true) return;
     if (me.id !== client.user.id) return;
     if (!message.content.startsWith(me)) return;
@@ -53,18 +54,19 @@ new discord.ButtonBuilder()
 )
 ban.prompts_sexuais += 1;
 ban.save();
-client.channels.cache.get('1053336886355169320').send({ content: `⚠️ | O usuario ${message.author.username} (\`${message.author.id}\`) Foi pego tentando usar prompts sexuais/gore!`, components: [row]})
-resposta = resposta.toString().replace('[GoogleGenerativeAI Error]:', '').replace('Candidate was blocked due to SAFETY', 'O usuario foi bloqueado por motivos de SEGURANÇA')
+client.channels.cache.get('1240122114090995792').send({ content: `⚠️ | O usuario ${message.author.username} (\`${message.author.id}\`) Foi pego tentando usar prompts sexuais/gore!`, components: [row]})
+resposta = 'Sou uma IA com base em texto, então não consigo te ajudar com isso. 😊'
 }
 
 //Error
 if (resposta.toString().includes('[GoogleGenerativeAI Error]')) { 
-resposta = resposta.toString().replace('[GoogleGenerativeAI Error]:', '')
+resposta = 'Sou uma IA com base em texto, então não consigo te ajudar com isso. 😊 '
 }
 clearInterval(sendTypingInterval)
 
 user.prompts_used += 1;
 user.save()
+if (resposta.includes('TypeError: response.text is not a function')) resposta = 'Sou uma IA com base em texto, então não consigo te ajudar com isso. 😊'
 await msg.edit({ content: `${resposta} `})
 clearTimeout(error)
     }

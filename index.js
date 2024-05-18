@@ -1,8 +1,10 @@
 // discors.js
 const { Client, GatewayIntentBits, Partials, Collection } = require("discord.js");
+const { AutoPoster } = require('topgg-autoposter')
 require('dotenv').config();
 const db_connect = require("./src/database/connect.js")
 const dailyRestart = require("./src/util/daily_reset.js")
+
 // client
 const client = new Client({
     intents: [Object.keys(GatewayIntentBits)],
@@ -30,7 +32,7 @@ console.clear();
 //Functions/Classes
 db_connect();
 dailyRestart();
-
+AutoPoster(process.env.topgg, client)
 //Logando no bot
 client.login(process.env.token);
 

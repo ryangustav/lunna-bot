@@ -12,6 +12,7 @@ module.exports = {
         .setName("imagine")
         .setDescription("「🎉」Faça-me imaginar uma imagem")
         .setDMPermission(false)
+        .setNSFW(true)
         .addStringOption(option => 
             option
             .setName('prompt')
@@ -47,7 +48,7 @@ module.exports = {
     async execute(interaction, client) {
     //Inciando prompts
     await interaction.reply({ content: `<a:azu_carregando:1122709454291488850> | Estou pensando...` })
-    const prompt = interaction.options.getString('prompt');
+    const prompt = `${interaction.options.getString('prompt')}`;
     const preset = interaction.options.getString('style') ? interaction.options.getString('style') : 'photographic';
     const verify = await LunarModel.findOne({ user_id: interaction.user.id })
     const verify_ban = await bania.findOne({ user_id: interaction.user.id })
@@ -55,21 +56,21 @@ module.exports = {
     if (!verify_ban) await bania.create({ user_id: interaction.user.id, isBanned: false, prompts_sexuais: 0 })
     const user = await LunarModel.findOne({ user_id: interaction.user.id })
     const ban = await bania.findOne({ user_id: interaction.user.id })
-    if (ban.isBanned === true) return interaction.editReply({ content: `<:moderator:1238705467883126865> | Você está banido! Não podera usar meus comandos. Para contextar o banimento entre em [meu servidor](https://em-breve.xyz/)`})
+    if (ban.isBanned === true) return interaction.editReply({ content: `<:moderator:1238705467883126865> | Você está banido! Não podera usar meus comandos. Para contextar o banimento entre em [meu servidor](https://discord.gg/23AhePRDAf)`})
     if (user.image_prompts_used === 3 && user.isVip === false) return interaction.editReply({ content: `<:naoJEFF:1109179756831854592> | Você atingiu o limite de prompts gratis diarios`})
     if (user.image_prompts_used === 10 && user.isVip === true) return interaction.editReply({ content: `<:naoJEFF:1109179756831854592> | Você atingiu o limite de prompts vip diario`})
-      
+    if (interaction.channel.nsfw === false) return interaction.editReply({ content: `<:naoJEFF:1109179756831854592> | Esse canal não é nsfw!`})
     const translated_prompt = await translate(prompt, {to: 'en'});
-    
+
     const imagine = await prodia.generate({
-		prompt: translated_prompt,
+		prompt: `${translated_prompt}`,
         style_preset: preset,
-        model: 'absolutereality_v181.safetensors [3d9d4d2b]',
+        model: 'amIReal_V41.safetensors [0a8a2e61]',
 	});
       
 const prodiaa = await prodia.wait(imagine);
 user.image_prompts_used += 1;
 user.save()
-interaction.editReply({ files: [prodiaa.imageUrl], content: `${interaction.user} Sua imagem ficou pronta!\n<:file:1052384025089687614> Prompt: ${prompt}\n<:config:1052355072782254152> Preset: ${preset}`})
+interaction.editReply({ files: [prodiaa.imageUrl], content: `${interaction.user} Sua imagem ficou pronta!\n<:file:1052384025089687614> Prompt: ${prompt.replace(", no make nsfw images, no make pornografic images, no show tits", '')}\n<:config:1052355072782254152> Preset: ${preset}`})
     }
 }

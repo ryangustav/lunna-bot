@@ -12,7 +12,7 @@ cron.schedule('0 0 * * * ', async daily => {
  await LunarModel.updateMany({}, { $set: { prompts_used: 0, image_prompts_used: 0 }})
 
  const data = { content: "<:gold_donator:1053256617518440478> | O daily e os prompts foram resetados!" }; 
- const webhookUrl = "https://discord.com/api/webhooks/1113142436500344852/F7IX3nXQHCqeRf4NI4nM4zAtNZGL3pG66IThe_2ytGJ8vFsZDEcQgdMDVH9cYf7xc-iO"
+ const webhookUrl = "https://discord.com/api/webhooks/1240122220261412874/Zm9kzMps984AX4B7LB0Bcw1sioHvGK7hrbfI0_3JbZezwKFrgOkgZkIOfhxJ3FNGPnby"
  const headers = { 'Content-Type': 'application/json' };
  
  axios.post(webhookUrl, data, { headers })

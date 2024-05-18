@@ -3,6 +3,12 @@ const mongoose = require("mongoose");
 
 const lunar_coins = new Schema({
   user_id: Number, 
+  hasVoted:{
+    type: Boolean, default: false,
+  },
+  voteTimestamp:  {
+    type: Number, default: 0,
+  },
   isVip:{
     type: Boolean, default: false,
   },

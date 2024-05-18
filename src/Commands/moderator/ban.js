@@ -38,16 +38,12 @@ module.exports = {
             embeds: [
             new Discord.EmbedBuilder()
             .setTitle(`Banir usuario`)
-            .setColor("#FFFFFF")
+            .setColor("#be00e8")
             .setDescription(`
-            ${message.author} você esta prestes a banir ${user}. Tem certeza?
+            ${interaction.user} você esta prestes a banir ${user}. Tem certeza?
             <:file:1052384025089687614> | Motivo:
             \`${motivo}\`
             `)
-            .setFooter({
-            iconURL: client.user.avatarURL({ Dynamic: true }),
-            text: `Copyrigth © Fênix Application`
-            })
             ],
             components: [
             new Discord.ActionRowBuilder()
@@ -75,6 +71,35 @@ module.exports = {
             if (int.customId === "confirma") {
             msg.delete()
 
+            user.send({
+                embeds: [
+                new Discord.EmbedBuilder()
+                .setColor('#be00e8')
+                .setThumbnail(user.avatarURL({ Dynamic: true }))
+                .setDescription(`### Você foi banido do servidor ${interaction.guild.name}`)
+                .addFields(
+                    {
+                    name: `<:users:1055062836704976997> **Membro**`,
+                    value: `${user} \n \`${user.id}\``,
+                    inline: false
+                    },
+                    {
+                    name: `<:IDD:1052973779153846372> **Moderador**`,
+                    value: `${interaction.user} \n \`${interaction.user.username}\``,
+                    inline: false
+                    },
+                    {
+                    name: `<:file:1052384025089687614> **Motivo**`,
+                    value: `\`${motivo}\``,
+                    inline: false
+                    },
+                    )
+                ]
+                })
+            
+            user.ban({ deleteMessageSeconds: 60 * 60 * 24 * 7, reason: `${interaction.user.username}: ${motivo}` }).then(a => {
+            int.channel.send({ content: `<:simJEFF:1109206099346862140> | Pronto! O usuario ${user.username} foi banido por ${interaction.user}!`})
+            })
             }
         })
     })

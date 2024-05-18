@@ -3,8 +3,8 @@ const genAI = new GoogleGenerativeAI(process.env.gemini_token);
 const fs = require('fs').promises;
 
 async function generative(prompt, user) {
-    const personalityFilePath = __dirname + '../../../personality.txt';
-    const ask = __dirname + '../../../asks-respostas.txt';
+    const personalityFilePath = './personality.txt';
+    const ask = './asks-respostas.txt';
     const personalityContent = await fs.readFile(personalityFilePath, 'utf-8');
     const personalityLines = personalityContent.split('\n');
 
@@ -19,7 +19,7 @@ async function generative(prompt, user) {
       
       const generationConfig = { maxOutputTokens: 750, temperature: 0.3 };
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", safetySettings, generationConfig });
-      
+      console.log(model)
       const chat = model.startChat({
         history: [
           {
