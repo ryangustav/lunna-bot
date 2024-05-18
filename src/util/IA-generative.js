@@ -19,7 +19,7 @@ async function generative(prompt, user) {
       
       const generationConfig = { maxOutputTokens: 750, temperature: 0.3 };
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", safetySettings, generationConfig });
-      console.log(model)
+     // console.log(model)
       const chat = model.startChat({
         history: [
           {

@@ -66,7 +66,7 @@ clearInterval(sendTypingInterval)
 
 user.prompts_used += 1;
 user.save()
-if (resposta.includes('TypeError: response.text is not a function')) resposta = 'Sou uma IA com base em texto, então não consigo te ajudar com isso. 😊'
+if (resposta.toString().includes('TypeError: response.text is not a function')) resposta = 'Sou uma IA com base em texto, então não consigo te ajudar com isso. 😊'
 await msg.edit({ content: `${resposta} `})
 clearTimeout(error)
     }
