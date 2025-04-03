@@ -1,253 +1,353 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder } = require('discord.js');
 const LunarModel = require("../../database/schema/coins_database.js");
 const dailyCollect = require('../../database/schema/daily_schema.js');
-const transactionsModel = require('../../database/schema/transactions.js')
+const transactionsModel = require('../../database/schema/transactions.js');
+const i18next = require('i18next');
+
+// Game constants
+const GAME_CONFIG = {
+    MIN_BET: 50,
+    TOTAL_MINES: 2,
+    GRID_SIZE: 4,
+    MULTIPLIER_INCREMENT: 0.25,
+    INITIAL_MULTIPLIER: 1.00
+};
+
+const EMOJIS = {
+    BOX: '<:caixa:1051978207110377573>',
+    COIN: '<:gold_donator:1053256617518440478>',
+    BOMB: '💣',
+    MONEY: '<:Money:1051978255827222590>',
+    ERROR: '<:naoJEFF:1109179756831854592>'
+};
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("mines")
         .setDescription("「💰」Jogue o jogo do mines")
+        .setDescriptionLocalizations({
+            'en-US': '「💰」Play the mines game',
+            'en-GB': '「💰」Play the mines game',
+        })
         .setDMPermission(false)
         .addNumberOption(option => 
             option
-            .setName("valor")
-            .setDescription("Qual valor que você ira apostar?")
-            .setRequired(true)
+                .setName("valor")
+                .setNameLocalizations({
+                    'en-US': 'amount',
+                    'en-GB': 'amount',
+                })
+                .setDescription("Qual valor que você irá apostar?")
+                .setDescriptionLocalizations({
+                    'en-US': 'How much do you want to bet?',
+                    'en-GB': 'How much do you want to bet?',
+                })
+                .setMinValue(GAME_CONFIG.MIN_BET)
+                .setRequired(true)
         ),
+
     async execute(interaction, client) {
-        
-        const valor = interaction.options.getNumber('valor');
-        const daily = await dailyCollect.findOne({ user_id: interaction.user.id });
-        const lunar = await LunarModel.findOne({ user_id: interaction.user.id });
-        const transactions_payer = await transactionsModel.findOne({ user_id: interaction.user.id })
-        const id = Math.floor(Math.random() * (999999999 - 111111111 + 1) + 111111111)
-        const timestamp = Math.floor(Date.now() / 1000);
-
-        if (!daily || daily.daily_collected === false) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você precisa coletar seu daily antes, usando </daily:1237466106093113434>` })
-        if (!lunar || lunar.coins < valor) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você não tem lunar coins o suficiente para fazer esta aposta!`})
-        if (valor < 50) return interaction.reply({ content: '<:naoJEFF:1109179756831854592> | Valor mínimo para apostar é 50!', ephemeral: true });
-        //interaction.deferUpdate();
-        
-        lunar.coins -= Math.floor(valor);
-        lunar.save();
-        const buttonRows = [];
-        const idsArray = []
-        let totalMines = 0;
-        let multiply = 1.00
-        for (let i = 0; i < 4; i++) {
-          const row = new ActionRowBuilder();
-          for (let j = 0; j < 4; j++) {
-            const randomId = Math.floor(Math.random() * 4);
-            let id = false
-            if (randomId === 2 && totalMines < 3) {
-            totalMines++
-            id = true
+        try {
+            // Verify/create user data
+            const verify_lunar = await LunarModel.findOne({ user_id: interaction.user.id });
+            if (!verify_lunar) {
+                await LunarModel.create({ 
+                    user_id: interaction.user.id, 
+                    coins: 0, 
+                    isVip: false, 
+                    prompts_used: 0, 
+                    language: 'pt-BR', 
+                    image_prompts_used: 0 
+                });
             }
-            if (i === 3 && j === 3 && totalMines === 2) return id = true
-            if (i === 2 && j === 2 && totalMines === 1) return id = true
-            const button = new ButtonBuilder()
-              .setCustomId(`button-${i}-${j}-${id}`)
-              .setLabel(' ')
-              .setEmoji('<:caixa:1051978207110377573>') 
-              .setStyle('Primary');
-              idsArray.push(`button-${i}-${j}-${id}-false`)
+
+            const valor = interaction.options.getNumber('valor');
+            
+            // Initial validations
+            const [daily, lunar, transactions] = await Promise.all([
+                dailyCollect.findOne({ user_id: interaction.user.id }),
+                LunarModel.findOne({ user_id: interaction.user.id }),
+                transactionsModel.findOne({ user_id: interaction.user.id })
+            ]);
+
+            const userLanguage = lunar.language;
+
+            if (!daily?.daily_collected) {
+                return interaction.reply({ 
+                    content: i18next.t('mines.needDaily', { 
+                        lng: userLanguage,
+                        emoji: EMOJIS.ERROR 
+                    }),
+                    flags: MessageFlags.Ephemeral 
+                });
+            }
+
+            if (!lunar || lunar.coins < valor) {
+                return interaction.reply({ 
+                    content: i18next.t('mines.insufficientFunds', { 
+                        lng: userLanguage,
+                        emoji: EMOJIS.ERROR 
+                    }),
+                    flags: MessageFlags.Ephemeral 
+                });
+            }
+
+            // Deduct initial bet
+            lunar.coins -= Math.floor(valor);
+            await lunar.save();
+
+            // Initialize game
+            const gameState = {
+                multiply: GAME_CONFIG.INITIAL_MULTIPLIER,
+                minesPositions: generateMinesPositions(),
+                revealedPositions: new Set(),
+                isGameOver: false,
+                userLanguage
+            };
+
+            const buttonGrid = createInitialGrid(gameState.minesPositions);
+            const embed = createGameEmbed(client, valor, gameState.multiply, false, false, userLanguage);
+
+            const message = await interaction.reply({ 
+                embeds: [embed], 
+                components: buttonGrid,
+                fetchReply: true
+            });
+
+            // Setup interaction collector
+            const collector = message.createMessageComponentCollector({
+                filter: (i) => i.user.id === interaction.user.id
+            });
+
+            collector.on('collect', async (int) => {
+                await handleButtonClick(int, message, gameState, valor, lunar, transactions, client);
+            });
+
+        } catch (error) {
+            console.error('Error in Mines game:', error);
+            return interaction.reply({ 
+                content: i18next.t('mines.error', { 
+                    lng: lunar?.language || 'pt-BR'
+                }),
+                flags: MessageFlags.Ephemeral 
+            });
+        }
+    }
+};
+
+function generateMinesPositions() {
+    const positions = new Set();
+    while (positions.size < GAME_CONFIG.TOTAL_MINES) {
+        const pos = `${Math.floor(Math.random() * GAME_CONFIG.GRID_SIZE)}-${Math.floor(Math.random() * GAME_CONFIG.GRID_SIZE)}`;
+        positions.add(pos);
+    }
+    return positions;
+}
+
+function createInitialGrid(minesPositions) {
+    const grid = [];
     
-            row.addComponents(button);
-          }
-          buttonRows.push(row); 
-        }
-        const row2 = new ActionRowBuilder();
-        const button = new ButtonBuilder()
-        .setCustomId(`finalizar-9-9-9-9`)
-        .setLabel('Finalizar jogo')
-        .setEmoji('<:gold_donator:1053256617518440478>')
-        .setStyle('Success');
-        idsArray.push(`finalizar-9-9-9-9`)
-        row2.addComponents(button);
-        buttonRows.push(row2); 
-
-
-
-        const embed = new EmbedBuilder()
-          .setTitle(client.user.username + ' | Mines Game💣')
-          .setColor("#be00e8")
-          .setDescription(`
-          <:gold_donator:1053256617518440478> | Multiplicador: ${multiply.toFixed(2)}
-          <:Money:1051978255827222590> | Ganhos: **${Math.floor(valor * multiply)}** Lunar coins
-          `);
-       
-        const message = await interaction.channel.send({ embeds: [embed], components: buttonRows }).then(msg => {
-
-        const collector = interaction.channel.createMessageComponentCollector();
-
-        collector.on('collect', int => {
-        if (int.message.id !== msg.id) return
-        int.deferUpdate()
-
-        if (int.customId === "finalizar-9-9-9-9") {
-            lunar.coins += Math.floor(valor * multiply);
-            lunar.save();
-
-
-
-            const rows = new ActionRowBuilder();
+    for (let i = 0; i < GAME_CONFIG.GRID_SIZE; i++) {
+        const row = new ActionRowBuilder();
+        for (let j = 0; j < GAME_CONFIG.GRID_SIZE; j++) {
+            const isMine = minesPositions.has(`${i}-${j}`);
             const button = new ButtonBuilder()
-            .setCustomId(`finalizar-9-9-9-9`)
-            .setLabel('Finalizar jogo')
-            .setEmoji('<:gold_donator:1053256617518440478>')
-            .setDisabled(true)
-            .setStyle('Success');
-            idsArray.push(`finalizar-9-9-9-9`)
-            rows.addComponents(button);
-
-            if (!transactions_payer) {
-              transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * multiply.toFixed(2)} jogando mines`}], transactions_ids: [id]})
-              } else {
-              transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * multiply.toFixed(2)} jogando mines`})
-              transactions_payer.transactions_ids.push(id)
-              transactions_payer.save()
-              }
-
-            const embed = new EmbedBuilder()
-            .setTitle(client.user.username + ' | Mines Game💣')
-            .setColor("#be00e8")
-            .setDescription(`
-            <:gold_donator:1053256617518440478> | Multiplicador: ${multiply.toFixed(2)}
-            <:Money:1051978255827222590> | Ganhos: **${Math.floor(valor * multiply)}** Lunar coins
-
-            🎉Parabéns ${interaction.user}, você ganhou **${Math.floor(valor * multiply)}** Lunar coins🎉
-            `);
-            msg.edit({embeds: [embed], components: [rows] })
-            return
+                .setCustomId(`cell-${i}-${j}-${isMine}`)
+                .setLabel(' ')
+                .setEmoji(EMOJIS.BOX)
+                .setStyle('Primary');
+            row.addComponents(button);
         }
-        const ids = int.customId.split('-')
-        const otherRow = []
-        const otherRow2 = []
-      
-        if (ids[3] === 'true') {
-        const idsArray2 = []
-
-        let id = 0;
-        for (i = 0; i < 4; i++) {
-        const row = new ActionRowBuilder();
-
-        for (j = 0; j < 4; j++) {
-     
-          const isBombs = `${idsArray[id]}`
-          const isBomb = isBombs.split('-')[3];
-
-          let emoji = '<:gold_donator:1053256617518440478>';
-          let cor = 'Secondary'
-          if (isBomb === 'true') {
-          emoji = '💣'
-          cor = 'Danger'
-          }
-          const button = new ButtonBuilder()
-            .setCustomId(`${id}`)
-            .setLabel(' ')
-            .setEmoji(emoji)
-            .setStyle(cor)
-            .setDisabled(true)
-          row.addComponents(button);
-    id++
-        }
-    otherRow.push(row)
-    }
-    if (!transactions_payer) {
-      transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Perdeu ${valor} jogando mines`}], transactions_ids: [id]})
-      } else {
-      transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Perdeu ${valor} jogando mines`})
-      transactions_payer.transactions_ids.push(id)
-      transactions_payer.save()
-      }
-    const row2 = new ActionRowBuilder();
-    const button = new ButtonBuilder()
-    .setCustomId(`finalizar-9-9-9-9`)
-    .setLabel('Finalizar jogo')
-    .setEmoji('<:gold_donator:1053256617518440478>')
-    .setDisabled(true)
-    .setStyle('Success');
-    idsArray.push(`finalizar-9-9-9-9`)
-     const embed = new EmbedBuilder()
-    .setTitle(client.user.username + ' | Mines Game💣')
-    .setColor("#be00e8")
-    .setDescription(`
-    <:gold_donator:1053256617518440478> | Multiplicador: ${multiply.toFixed(2)}
-    <:Money:1051978255827222590> | Percas: **${Math.floor(valor)}** Lunar coins
-
-    <:naoJEFF:1109179756831854592> Você perdeu **${Math.floor(valor)}** lunar coins <:naoJEFF:1109179756831854592>
-    `);
-    row2.addComponents(button);
-    otherRow.push(row2)
-    msg.edit({ embeds: [embed], components: otherRow })
-        
-    } else {
-        multiply += 0.25;
-         
-        const idsArray2 = []
-
-        let id = 0;
-        for (i = 0; i < 4; i++) {
-        const row = new ActionRowBuilder();
-
-        for (j = 0; j < 4; j++) {
-     
-          const isBombs = `${idsArray[id]}`
-          const starCalc = isBombs.split('-');
-          
-
-          let emoji = '<:caixa:1051978207110377573>';
-          let cor = 'Primary'
-          let disabled = false
-          if (starCalc[4] === 'true') {
-            emoji = '<:gold_donator:1053256617518440478>'
-            cor = 'Secondary'
-            disabled = true
-          }
-          if (starCalc[1] === ids[1] && starCalc[2] === ids[2]) {
-          emoji = '<:gold_donator:1053256617518440478>'
-          cor = 'Secondary'
-          disabled = true
-          idsArray[id] = `${starCalc[0]}-${starCalc[1]}-${starCalc[2]}-${starCalc[3]}-${disabled}`
-          }
-          const button = new ButtonBuilder()
-            .setCustomId(`${starCalc[0]}-${starCalc[1]}-${starCalc[2]}-${starCalc[3]}-${disabled}`)
-            .setLabel(' ')
-            .setEmoji(emoji)
-            .setStyle(cor)
-            .setDisabled(disabled)
-          row.addComponents(button);
-
-    id++
-        }
-    otherRow2.push(row)
+        grid.push(row);
     }
 
+    const finalizeRow = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('finalize')
+                .setLabel('Finalizar jogo')
+                .setEmoji(EMOJIS.COIN)
+                .setStyle('Success')
+        );
+    grid.push(finalizeRow);
 
+    return grid;
+}
 
-    const row2 = new ActionRowBuilder();
-    const button = new ButtonBuilder()
-    .setCustomId(`finalizar-9-9-9-9`)
-    .setLabel('Finalizar jogo')
-    .setEmoji('<:gold_donator:1053256617518440478>')
-    .setStyle('Success');
-    idsArray.push(`finalizar-9-9-9-9`)
+function createGameEmbed(client, valor, multiplier, gameOver = false, won = false, language) {
+    const gains = Math.floor(valor * multiplier);
+    
+    const description = i18next.t(
+        gameOver 
+            ? won 
+                ? 'mines.embedWon'
+                : 'mines.embedLost'
+            : 'mines.embedOngoing',
+        {
+            lng: language,
+            multiplier: multiplier.toFixed(2),
+            coins: gains,
+            bet: valor,
+            coin: EMOJIS.COIN,
+            money: EMOJIS.MONEY,
+            error: EMOJIS.ERROR
+            
+        }
+    );
 
-    row2.addComponents(button);
-    otherRow2.push(row2)
-    const embed = new EmbedBuilder()
-    .setTitle(client.user.username + ' | Mines Game💣')
-    .setColor("#be00e8")
-    .setDescription(`
-    <:gold_donator:1053256617518440478> | Multiplicador: ${multiply.toFixed(2)}
-    <:Money:1051978255827222590> | Ganhos: **${Math.floor(valor * multiply.toFixed(2))}** Lunar coins
+    return new EmbedBuilder()
+        .setTitle(i18next.t('mines.embedTitle', { 
+            lng: language,
+            botName: client.user.username 
+        }))
+        .setColor("#be00e8")
+        .setDescription(description);
+}
 
-    `);
-    msg.edit({embeds: [embed], components: otherRow2 })
+async function handleButtonClick(interaction, message, gameState, valor, lunar, transactions, client) {
+    await interaction.deferUpdate();
+
+    if (gameState.isGameOver) return;
+
+    const isFinalize = interaction.customId === 'finalize';
+    const [type, row, col, isMine] = interaction.customId.split('-');
+
+    if (isFinalize) {
+        await handleGameEnd(true, message, gameState, valor, lunar, transactions, client);
+        return;
     }
-        })
+
+    if (type !== 'cell') return;
+
+    const position = `${row}-${col}`;
+    
+    if (gameState.revealedPositions.has(position)) return;
+    
+    if (isMine === 'true') {
+        await handleGameEnd(false, message, gameState, valor, lunar, transactions, client);
+        return;
+    }
+
+    gameState.revealedPositions.add(position);
+    gameState.multiply += GAME_CONFIG.MULTIPLIER_INCREMENT;
+
+    const updatedGrid = createUpdatedGrid(gameState);
+    const updatedEmbed = createGameEmbed(client, valor, gameState.multiply, false, false, gameState.userLanguage);
+
+    await message.edit({
+        embeds: [updatedEmbed],
+        components: updatedGrid
+    });
+}
+
+async function handleGameEnd(won, message, gameState, valor, lunar, transactions, client) {
+    gameState.isGameOver = true;
+    
+    if (won) {
+        const winAmount = Math.floor(valor * gameState.multiply);
+        lunar.coins += winAmount;
+        await lunar.save();
+    }
+
+    const transactionData = {
+        id: Math.floor(Math.random() * (999999999 - 111111111 + 1) + 111111111),
+        timestamp: Math.floor(Date.now() / 1000),
+        mensagem: i18next.t(
+            won ? 'mines.transactionWon' : 'mines.transactionLost',
+            {
+                lng: gameState.userLanguage,
+                amount: won ? Math.floor(valor * gameState.multiply) : valor
+            }
+        )
+    };
+
+    if (!transactions) {
+        await transactionsModel.create({
+            user_id: message.interaction.user.id,
+            transactions: [transactionData],
+            transactions_ids: [transactionData.id]
         });
-     
-
+    } else {
+        transactions.transactions.push(transactionData);
+        transactions.transactions_ids.push(transactionData.id);
+        await transactions.save();
     }
+
+    const finalGrid = createFinalGrid(gameState.minesPositions, gameState.revealedPositions, gameState);
+    const finalEmbed = createGameEmbed(client, valor, gameState.multiply, true, won, gameState.userLanguage);
+
+    await message.edit({
+        embeds: [finalEmbed],
+        components: finalGrid
+    });
+}
+
+function createUpdatedGrid(gameState) {
+    const grid = [];
+    
+    for (let i = 0; i < GAME_CONFIG.GRID_SIZE; i++) {
+        const row = new ActionRowBuilder();
+        for (let j = 0; j < GAME_CONFIG.GRID_SIZE; j++) {
+            const position = `${i}-${j}`;
+            const isMine = gameState.minesPositions.has(position);
+            const isRevealed = gameState.revealedPositions.has(position);
+            
+            const button = new ButtonBuilder()
+                .setCustomId(`cell-${i}-${j}-${isMine}`)
+                .setLabel(' ')
+                .setEmoji(isRevealed ? EMOJIS.COIN : EMOJIS.BOX)
+                .setStyle(isRevealed ? 'Secondary' : 'Primary')
+                .setDisabled(isRevealed);
+            
+            row.addComponents(button);
+        }
+        grid.push(row);
+    }
+
+    const finalizeRow = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('finalize')
+                .setLabel(i18next.t('mines.finalizeButton', { lng: gameState.userLanguage }))
+                .setEmoji(EMOJIS.COIN)
+                .setStyle('Success')
+        );
+    grid.push(finalizeRow);
+    
+    return grid;
+}
+
+function createFinalGrid(minesPositions, revealedPositions, gameState) {
+    const grid = [];
+    
+    for (let i = 0; i < GAME_CONFIG.GRID_SIZE; i++) {
+        const row = new ActionRowBuilder();
+        for (let j = 0; j < GAME_CONFIG.GRID_SIZE; j++) {
+            const position = `${i}-${j}`;
+            const isMine = minesPositions.has(position);
+            
+            const button = new ButtonBuilder()
+                .setCustomId(`cell-${i}-${j}`)
+                .setLabel(' ')
+                .setEmoji(isMine ? EMOJIS.BOMB : EMOJIS.COIN)
+                .setStyle(isMine ? 'Danger' : 'Secondary')
+                .setDisabled(true);
+            
+            row.addComponents(button);
+        }
+        grid.push(row);
+    }
+
+    const finalizeRow = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('finalize')
+                .setLabel(i18next.t('mines.finalizeButton', { lng: gameState.userLanguage }))
+                .setEmoji(EMOJIS.COIN)
+                .setStyle('Success')
+                .setDisabled(true)
+        );
+    grid.push(finalizeRow);
+    
+    return grid;
 }

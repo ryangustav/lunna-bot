@@ -17,8 +17,8 @@ async function generative(prompt, user) {
         { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
       ];
       
-      const generationConfig = { maxOutputTokens: 750, temperature: 0.3 };
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", safetySettings, generationConfig });
+      const generationConfig = { maxOutputTokens: 750, temperature: 1.5 };
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp", safetySettings, generationConfig });
      // console.log(model)
       const chat = model.startChat({
         history: [
@@ -37,7 +37,7 @@ async function generative(prompt, user) {
             ],
           },
         ],
-        generationConfig: { maxOutputTokens: 750, temperature: 0.3 },
+        generationConfig: { maxOutputTokens: 750, temperature: 0.5 },
       });
       
       const result = await chat.sendMessage(prompt);
@@ -48,7 +48,8 @@ async function generative(prompt, user) {
           response.text().substring(0, 1928 - "... \n\n".length) + "... \n\n*A resposta foi interrompida devido ao limite de caracteres do Discords de 2.000*";
       }
       const resposta = await response.text();
-  fs.appendFile(ask, `${prompt} - ${resposta}\n`)
+  //fs.appendFile(ask, `${prompt} - ${resposta}\n`)
+  console.log(resposta)
   return resposta
 } catch(err) {
 return err

@@ -1,15 +1,18 @@
 // discors.js
 const { Client, GatewayIntentBits, Partials, Collection } = require("discord.js");
-const { AutoPoster } = require('topgg-autoposter')
 require('dotenv').config();
 const db_connect = require("./src/database/connect.js")
 const dailyRestart = require("./src/util/daily_reset.js")
-
+const { setupI18n } = require("./src/util/language_util.js")
+const RifaDrawSystem = require('./src/util/rifa.js');
 // client
+
+async function init() {
 const client = new Client({
     intents: [Object.keys(GatewayIntentBits)],
     partials: [Object.keys(Partials)]
 });
+const rifaSystem = new RifaDrawSystem(client);
 
 // permite importar o client externamente
 module.exports = client;
@@ -32,7 +35,9 @@ console.clear();
 //Functions/Classes
 db_connect();
 dailyRestart();
-AutoPoster(process.env.topgg, client)
+await setupI18n();
+rifaSystem.start();
+
 //Logando no bot
 client.login(process.env.token);
 
@@ -49,3 +54,7 @@ process.on('uncaughtException', (error, origin) => {
 process.on('uncaughtExceptionMonitor', (error, origin) => {
   console.log(`🚫 Erro Detectado:\n\n${error.stack}`);
 });
+
+}
+
+init();

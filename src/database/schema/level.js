@@ -2,7 +2,7 @@ const { Schema } = require("mongoose");
 const mongoose = require("mongoose");
 
 const level_user = new Schema({
-    user_id: Number,
+    user_id: String,
     xp: Number,
     level: Number,
 })

@@ -1,236 +1,197 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder } = require('discord.js');
 const LunarModel = require("../../database/schema/coins_database.js");
-const dailyCollect = require('../../database/schema/daily_schema.js');
-const transactionsModel = require('../../database/schema/transactions.js')
-const tigrin = ['<:SpecialRoles:1055063301148639252>', '<:gold_donator:1053256617518440478>', '<:gold_donator:1053256617518440478>', '🍎', '🍐', '🍇', '🍎', '🍐', '🍇', '🍎', '🍐', '🍇' ];
+const i18next = require('i18next');
 
+// Game configuration
+const GAME_CONFIG = {
+    MIN_BET: 50,
+    SPIN_DURATION: 2000,
+    SPIN_INTERVAL: 300,
+    MULTIPLIERS: {
+        SPECIAL_ROLE: 10.00,
+        GOLD_DONATOR: 5.00,
+        OTHER: 1.25,
+        DEFAULT: 1.00
+    }
+};
+
+// Game symbols and emojis
+const EMOJIS = {
+    SPINNING_SYMBOLS: ['🎰', '💎', '7️⃣', '🎲'],
+    MONEY: '<:Money:1051978255827222590>',
+    ERROR: '<:naoJEFF:1109179756831854592>',
+    SPECIAL_ROLE: '<:SpecialRoles:1055063301148639252>',
+    GOLD_DONATOR: '<:gold_donator:1053256617518440478>',
+    FRUITS: ['🍎', '🍐', '🍇']
+};
+
+const SYMBOLS_POOL = [
+    { symbol: EMOJIS.SPECIAL_ROLE, weight: 1 },
+    { symbol: EMOJIS.GOLD_DONATOR, weight: 2 },
+    ...EMOJIS.FRUITS.map(fruit => ({ symbol: fruit, weight: 3 }))
+];
+
+const WINNING_COMBINATIONS = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+    [0, 4, 8], [2, 4, 6]             // Diagonals
+];
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("tigrin")
+        .setNameLocalizations({
+            'en-US': "slot",
+            'en-GB': "slot"
+        })
         .setDescription("「💰」Jogue o jogo do tigrinho")
+        .setDescriptionLocalizations({
+            'en-US': '「💰」Play the slot machine game',
+            'en-GB': '「💰」Play the slot machine game',
+        })
         .setDMPermission(false)
         .addNumberOption(option => 
             option
-            .setName("valor")
-            .setDescription("Qual valor que você ira apostar?")
-            .setRequired(true)
+                .setName("valor")
+                .setNameLocalizations({
+                    'en-US': 'amount',
+                    'en-GB': 'amount',
+                })
+                .setDescription("Qual valor que você irá apostar?")
+                .setDescriptionLocalizations({
+                    'en-US': 'How much would you like to bet?',
+                    'en-GB': 'How much would you like to bet?',
+                })
+                .setMinValue(GAME_CONFIG.MIN_BET)
+                .setRequired(true)
         ),
+
     async execute(interaction, client) {
-        interaction.deferReply();
-        const valor_base = interaction.options.getNumber('valor');
-        let valor = valor_base;
-        const daily = await dailyCollect.findOne({ user_id: interaction.user.id });
-        const lunar = await LunarModel.findOne({ user_id: interaction.user.id });
-        const transactions_payer = await transactionsModel.findOne({ user_id: interaction.user.id })
-        const id = Math.floor(Math.random() * (999999999 - 111111111 + 1) + 111111111)
-        const timestamp = Math.floor(Date.now() / 1000);
+        if (!client) {
+            throw new Error('Client is required');
+        }
+    await interaction.deferReply();
 
-        
-        if (!daily || daily.daily_collected === false) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você precisa coletar seu daily antes, usando </daily:1237466106093113434>` })
-        if (!lunar || lunar.coins < valor) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você não tem lunar coins o suficiente para fazer esta aposta!`})
-        if (valor < 50) return interaction.reply({ content: '<:naoJEFF:1109179756831854592> | Valor mínimo para apostar é 50!', ephemeral: true });
-    
-        
-        lunar.coins -= Math.floor(valor);
-        lunar.save();
-        let multiply = {
-        SpecialRole: 10.00,
-        GoldDonator: 5.00,
-        Other: 1.25
-        }
-        let winCount = 0;
-        const tigrin_random = []
-        for (i = 0; i < 9; i++) {
-        const tigre = Math.floor(Math.random() * tigrin.length)
-        tigrin_random.push(tigrin[tigre]);
-        }
-        const winningCombinations = [
-            // Rows
-            [0, 1, 2],
-            [3, 4, 5],
-            [6, 7, 8],
-          
-            // Columns
-            [0, 3, 6],
-            [1, 4, 7],
-            [2, 5, 8],
-          
-            // Diagonals
-            [0, 4, 8],
-            [2, 4, 6]
-          ];
-          
-          let isWinner = false;
-          let winningSymbol = ''
-          for (const combination of winningCombinations) {
-            if (tigrin_random[combination[0]] === tigrin_random[combination[1]] && tigrin_random[combination[1]] === tigrin_random[combination[2]]) {
-              isWinner = true;
-              winningSymbol = tigrin_random[combination[0]];
-              winCount++
-            // Stop checking if a winner is found
+        try {
+            const betAmount = interaction.options.getNumber('valor');
+            const lunar = await LunarModel.findOne({ user_id: interaction.user.id });
+            const userLanguage = lunar?.language || 'pt-BR';
+            
+            if (!lunar || lunar.coins < betAmount) {
+                return interaction.editReply({
+                    content: i18next.t('tigrin.insufficient_funds', { lng: userLanguage }),
+                    flags: MessageFlags.Ephemeral
+                });
             }
-          }
-if (winningSymbol === '<:SpecialRoles:1055063301148639252>') {
-multiply = multiply.SpecialRole  * winCount;
-valor = valor * multiply;
-lunar.coins += Math.floor(valor);
-} else if (winningSymbol === '<:gold_donator:1053256617518440478>') {
-multiply = multiply.GoldDonator  * winCount;
-valor = valor * multiply;
-lunar.coins += Math.floor(valor);
-} else if (isWinner === true) {
-multiply = multiply.Other * winCount
-valor = valor * multiply;
-lunar.coins += Math.floor(valor);
-} else if (isWinner === false) {
-multiply = 1.00
-}
-if (isWinner === true) {
-  if (!transactions_payer) {
-    transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * multiply.toFixed(2)} jogando tigrin`}], transactions_ids: [id]})
-    } else {
-    transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Ganhou ${valor * multiply.toFixed(2)} jogando tigrin`})
-    transactions_payer.transactions_ids.push(id)
-    transactions_payer.save()
-    }
-}
-lunar.save()
-const row = new ActionRowBuilder();
-const button = new ButtonBuilder()
-.setCustomId(`Play-again`)
-.setLabel('Jogar novamente')
-.setEmoji('🔄')
-.setStyle('Primary');
-row.addComponents(button);
 
-        const embed = new EmbedBuilder()
-        .setTitle(client.user.username + ' | Tigrin Game🍎')
+            // Deduct initial bet
+            lunar.coins -= Math.floor(betAmount);
+            await lunar.save();
+
+            const gameResult = await playGame(interaction, client, betAmount);
+            
+            // Update user's coins with winnings
+            if (gameResult.winAmount > 0) {
+                lunar.coins += gameResult.winAmount;
+                await lunar.save();
+            }
+
+            await showResult(interaction, client, gameResult, userLanguage);
+
+        } catch (error) {
+            console.error('Error in Tigrin game:', error);
+            return interaction.editReply({
+                content: i18next.t('tigrin.error', { lng: 'pt-BR' }),
+                flags: MessageFlags.Ephemeral
+            });
+        }
+    }
+};
+
+async function playGame(interaction, client, betAmount) {
+    const spinningAnimation = createSpinningAnimation(client);
+    const message = await interaction.editReply({ embeds: [spinningAnimation] });
+
+    // Spin animation
+    const spins = Math.floor(GAME_CONFIG.SPIN_DURATION / GAME_CONFIG.SPIN_INTERVAL);
+    for (let i = 0; i < spins; i++) {
+        await new Promise(resolve => setTimeout(resolve, GAME_CONFIG.SPIN_INTERVAL));
+        await message.edit({ 
+            embeds: [createSpinningAnimation(client)]
+        }).catch(console.error);
+    }
+
+    return generateGameResult(betAmount);
+}
+
+function createSpinningAnimation(client) {
+    const spinningSymbol = EMOJIS.SPINNING_SYMBOLS[Math.floor(Math.random() * EMOJIS.SPINNING_SYMBOLS.length)];
+    const spinningBoard = Array(9).fill(spinningSymbol);
+    
+    return new EmbedBuilder()
+        .setTitle(`${client.user.username} | Tigrin Game 🎰`)
         .setColor("#be00e8")
         .setDescription(`
-<:Money:1051978255827222590> | Ganhos: **${Math.floor(valor)}** Lunar coins
-<:gold_donator:1053256617518440478> | Multiplicador: ${winningSymbol} ${multiply.toFixed(2)}
+${EMOJIS.MONEY} | ${i18next.t('tigrin.spinning', { lng: 'pt-BR' })}
 ↘️=====↙️
-${tigrin_random[0]} ${tigrin_random[1]} ${tigrin_random[2]}
-${tigrin_random[3]} ${tigrin_random[4]} ${tigrin_random[5]}
-${tigrin_random[6]} ${tigrin_random[7]} ${tigrin_random[8]}
+${spinningBoard.slice(0, 3).join(' ')}
+${spinningBoard.slice(3, 6).join(' ')}
+${spinningBoard.slice(6, 9).join(' ')}
 ↗️=====↖️`);
-
-const message = await interaction.channel.send({ embeds: [embed], components: [row]}).then(async msg => {
-const collector = interaction.channel.createMessageComponentCollector({ time: 300000 }) 
-collector.on('collect', async int => {
-if (int.message.id !== msg.id) return
-int.deferUpdate();
-if (int.user.id !== interaction.user.id) return
-if (valor === 0 ) valor = valor_base;
-
-function random() {
-
-    lunar.coins -= Math.floor(valor);
-    lunar.save();
-    let multiply = {
-        SpecialRole: 10.00,
-        GoldDonator: 5.00,
-        Other: 1.25
-    }
-    let winCount = 0;
-    const tigrin_random = []
-    for (i = 0; i < 9; i++) {
-    const tigre = Math.floor(Math.random() * tigrin.length)
-    tigrin_random.push(tigrin[tigre]);
-    }
-    const winningCombinations = [
-        // Rows
-        [0, 1, 2],
-        [3, 4, 5],
-        [6, 7, 8],
-      
-        // Columns
-        [0, 3, 6],
-        [1, 4, 7],
-        [2, 5, 8],
-      
-        // Diagonals
-        [0, 4, 8],
-        [2, 4, 6]
-      ];
-      
-      let isWinner = false;
-      let winningSymbol = ''
-      for (const combination of winningCombinations) {
-        if (tigrin_random[combination[0]] === tigrin_random[combination[1]] && tigrin_random[combination[1]] === tigrin_random[combination[2]]) {
-          isWinner = true;
-          winningSymbol = tigrin_random[combination[0]];
-          winCount++
-        // Stop checking if a winner is found
-        }
-      }
-
-
-
-
-      if (winningSymbol === '<:SpecialRoles:1055063301148639252>') {
-        multiply = multiply.SpecialRole  * winCount;
-        valor = valor * multiply;
-lunar.coins += Math.floor(valor);
-lunar.save();
-        } else if (winningSymbol === '<:gold_donator:1053256617518440478>') {
-        multiply = multiply.GoldDonator  * winCount;
-        valor = valor * multiply;
-        lunar.coins += Math.floor(valor);
-        lunar.save();
-        } else if (isWinner === true) {
-        multiply = multiply.Other * winCount
-        valor = valor * multiply;
-lunar.coins += Math.floor(valor);
-lunar.save();
-        } else if (isWinner === false) {
-        multiply = 1.00
-
-        }
-
-return { multiply, winningSymbol, tigrin_random }
 }
 
-const game = await random();
+function generateGameResult(betAmount) {
+    const board = Array(9).fill(null).map(() => {
+        const totalWeight = SYMBOLS_POOL.reduce((sum, item) => sum + item.weight, 0);
+        let random = Math.random() * totalWeight;
+        
+        for (const item of SYMBOLS_POOL) {
+            random -= item.weight;
+            if (random <= 0) return item.symbol;
+        }
+        return SYMBOLS_POOL[0].symbol;
+    });
 
-const embed = new EmbedBuilder()
-.setTitle(client.user.username + ' | Tigrin Game🍎')
-.setColor("#be00e8")
-.setDescription(`
-<:Money:1051978255827222590> | Ganhos: **${Math.floor(valor * game.multiply)}** Lunar coins
-<:gold_donator:1053256617518440478> | Multiplicador: ${game.winningSymbol} ${game.multiply.toFixed(2)}
-↘️=====↙️
-${game.tigrin_random[0]} ${game.tigrin_random[1]} ${game.tigrin_random[2]}
-${game.tigrin_random[3]} ${game.tigrin_random[4]} ${game.tigrin_random[5]}
-${game.tigrin_random[6]} ${game.tigrin_random[7]} ${game.tigrin_random[8]}
-↗️=====↖️`);
+    const winningLines = WINNING_COMBINATIONS.filter(combo => {
+        const [a, b, c] = combo;
+        return board[a] === board[b] && board[b] === board[c];
+    });
 
-interaction.editReply({embeds: [embed] })
-})
-collector.on('end', int => {
+    const multiplier = calculateMultiplier(board, winningLines);
+    const winAmount = Math.floor(betAmount * multiplier);
 
-    const row = new ActionRowBuilder();
-    const button = new ButtonBuilder()
-    .setCustomId(`Play-again`)
-    .setLabel('Jogar novamente')
-    .setEmoji('🔄')
-    .setDisabled(true)
-    .setStyle('Primary');
-    row.addComponents(button);
-
-    const embed = new EmbedBuilder()
-.setTitle(client.user.username + ' | Tigrin Game🍎')
-.setColor("#be00e8")
-.setDescription(`
-<:Money:1051978255827222590> | Ganhos: **${Math.floor(valor * multiply)}** Lunar coins
-<:gold_donator:1053256617518440478> | Multiplicador: ${winningSymbol} ${multiply.toFixed(2)}
-
-<:bl_info:1053256877896634439> Para jogar novamente use </tigrin:1237842905876398212>
-`);
-
-msg.edit({embeds: [embed], components: [row] })
-})
-})
+    return { board, winningLines, multiplier, winAmount };
 }
+
+function calculateMultiplier(board, winningLines) {
+    if (winningLines.length === 0) return 0;
+
+    const winningSymbol = board[winningLines[0][0]];
+    const baseMultiplier = {
+        [EMOJIS.SPECIAL_ROLE]: GAME_CONFIG.MULTIPLIERS.SPECIAL_ROLE,
+        [EMOJIS.GOLD_DONATOR]: GAME_CONFIG.MULTIPLIERS.GOLD_DONATOR
+    }[winningSymbol] || GAME_CONFIG.MULTIPLIERS.OTHER;
+
+    return baseMultiplier * winningLines.length;
+}
+
+async function showResult(interaction, client, gameResult, language) {
+    const { board, winningLines, multiplier, winAmount } = gameResult;
+
+    const boardDisplay = board.map((symbol, index) => {
+        const isWinning = winningLines.some(line => line.includes(index));
+        return isWinning ? `**${symbol}**` : symbol;
+    });
+
+    const resultEmbed = new EmbedBuilder()
+        .setTitle(`${client.user.username} | Tigrin Game 🎰`)
+        .setColor("#be00e8")
+        .setDescription(i18next.t('tigrin.result', {
+            winAmount,
+            multiplier: multiplier.toFixed(2),
+            board: `${boardDisplay.slice(0, 3).join(' ')}\n${boardDisplay.slice(3, 6).join(' ')}\n${boardDisplay.slice(6).join(' ')}`,
+            lng: language
+        }));
+
+    await interaction.editReply({ embeds: [resultEmbed] });
 }

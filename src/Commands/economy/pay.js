@@ -1,70 +1,200 @@
 const { SlashCommandBuilder } = require("discord.js");
 const LunarModel = require("../../database/schema/coins_database.js");
 const dailyCollect = require('../../database/schema/daily_schema.js');
-const transactionsModel = require('../../database/schema/transactions.js')
+const transactionsModel = require('../../database/schema/transactions.js');
+const i18next = require('i18next');
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("pay")
         .setDescription("「💰」Pague lunar coins")
+        .setDescriptionLocalizations({
+            'en-US': '「💰」Pay Lunar Coins',
+            'en-GB': '「💰」Pay Lunar Coins',
+        })
         .setDMPermission(false)
-        .addUserOption(option => 
+        .addUserOption(option =>
             option
-            .setName("user")
-            .setDescription("Quem você ira pagar?")
-            .setRequired(true)
+                .setName("user")
+                .setDescription("Quem você irá pagar?")
+                .setDescriptionLocalizations({
+                    'en-US': 'Who will you pay?',
+                    'en-GB': 'Who will you pay?',
+                })
+                .setRequired(true)
         )
-        .addNumberOption(option => 
+        .addNumberOption(option =>
             option
-            .setName("valor")
-            .setDescription("Qual valor que você ira enviar?")
-            .setRequired(true)
+                .setName("valor")
+                .setNameLocalizations({
+                    'en-US': 'value',
+                    'en-GB': 'value',
+                })
+                .setDescription("Qual valor que você irá enviar?")
+                .setDescriptionLocalizations({
+                    'en-US': 'What amount will you send?',
+                    'en-GB': 'What amount will you send?',
+                })
+                .setRequired(true)
+                .setMinValue(10)
         ),
-    async execute(interaction, client) {
-   //Definições
-    const user = interaction.options.getUser('user');
-    const valor = Number(interaction.options.getNumber('valor'));
 
-    const daily_payer = await dailyCollect.findOne({ user_id: interaction.user.id });
-    const daily_receiver = await dailyCollect.findOne({ user_id: user.id });
-    const lunar_payer = await LunarModel.findOne({ user_id: interaction.user.id })
-    const lunar_receiver = await LunarModel.findOne({ user_id: user.id })
-    const transactions_payer = await transactionsModel.findOne({ user_id: interaction.user.id })
-    const transactions_receiver = await transactionsModel.findOne({ user_id: user.id })
-    const id = Math.floor(Math.random() * (999999999 - 111111111 + 1) + 111111111)
-    const timestamp = Math.floor(Date.now() / 1000);
+    async execute(interaction) {
+        try {
+            const user = interaction.options.getUser('user');
+            const valor = interaction.options.getNumber('valor');
 
-    //Verificações
-    if (!daily_payer || daily_payer.daily_collected === false) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você precisa coletar seu daily antes, usando </daily:1237466106093113434>` })
-    if (!daily_receiver || daily_receiver.daily_collected === false) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | O usuario precisa coletar o daily antes, usando </daily:1237466106093113434>` })
-    if (!lunar_payer || lunar_payer.coins < valor) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Você não tem lunar coins o suficiente para efetuar esse pagamento!`})
-    if (valor < 10) return interaction.reply({ content: `<:naoJEFF:1109179756831854592> | Esse valor e invalido!`})
-   
-    if (!lunar_receiver) {
-   await LunarModel.create({ user_id: user.id, coins: valor})
-    lunar_payer.coins -= valor
-    lunar_payer.save();
-    } else {
-    lunar_receiver.coins =+ valor
-    lunar_receiver.save();
-    lunar_payer.coins -= valor
-    lunar_payer.save();
+            if (!user || !valor) {
+                return interaction.reply({
+                    content: "Erro: Usuário ou valor inválido.",
+                    ephemeral: true
+                });
+            }
+
+            
+            const [daily_payer, daily_receiver, lunar_payer, lunar_receiver] = await Promise.all([
+                dailyCollect.findOne({ user_id: interaction.user.id }),
+                dailyCollect.findOne({ user_id: user.id }),
+                LunarModel.findOne({ user_id: interaction.user.id }),
+                LunarModel.findOne({ user_id: user.id })
+            ]);
+
+          
+            const userLanguage = lunar_receiver?.language || 'pt';
+            const authorLanguage = lunar_payer?.language || 'pt';
+
+         
+            if (user.id === interaction.user.id) {
+                return interaction.reply({
+                    content: i18next.t('pay.autosend', {
+                        lng: authorLanguage
+                    }),
+                    ephemeral: true
+                });
+            }
+
+         
+            if (!daily_payer?.daily_collected) {
+                return interaction.reply({
+                    content: i18next.t('pay.daily', {
+                        lng: authorLanguage
+                    }),
+                    ephemeral: true
+                });
+            }
+
+            
+            if (!daily_receiver?.daily_collected) {
+                return interaction.reply({
+                    content: i18next.t('pay.daily_user', {
+                        lng: userLanguage
+                    }),
+                    ephemeral: false
+                });
+            }
+
+            
+            if (!lunar_payer || lunar_payer.coins < valor) {
+                return interaction.reply({
+                    content: i18next.t('pay.insuficient_coins', {
+                        lng: authorLanguage
+                    }),
+                    ephemeral: true
+                });
+            }
+
+         
+            const transactionId = Math.floor(Math.random() * (999999999 - 111111111 + 1) + 111111111);
+            const timestamp = Math.floor(Date.now() / 1000);
+
+            
+            if (!lunar_receiver) {
+                await LunarModel.create({
+                    user_id: user.id,
+                    coins: valor,
+                    language: userLanguage
+                });
+            } else {
+                lunar_receiver.coins += valor;
+                await lunar_receiver.save();
+            }
+
+        
+            lunar_payer.coins -= valor;
+            await lunar_payer.save();
+
+           
+            const transactionData = {
+                id: transactionId,
+                timestamp: timestamp
+            };
+
+            
+            const payerTransaction = {
+                ...transactionData,
+                mensagem: i18next.t('pay.message_transactions', {
+                    amount: valor,
+                    user_username: user.username,
+                    id: user.id,
+                    lng: authorLanguage
+                })
+            };
+
+            const receiverTransaction = {
+                ...transactionData,
+                mensagem: i18next.t('pay.message_user_transactions', {
+                    amount: valor,
+                    user_username: interaction.user.username,
+                    id: interaction.user.id,
+                    lng: userLanguage
+                })
+            };
+
+          
+            await Promise.all([
+                updateTransactions(interaction.user.id, payerTransaction),
+                updateTransactions(user.id, receiverTransaction)
+            ]);
+
+            
+            return interaction.reply({
+                content: i18next.t('pay.message', {
+                    user: `<@${interaction.user.id}>`,
+                    user_two: `<@${user.id}>`,
+                    amount: valor,
+                    lng: authorLanguage
+                })
+            });
+
+        } catch (error) {
+            console.error('Erro ao processar pagamento:', error);
+            return interaction.reply({
+                content: i18next.t('pay.error', {
+                    lng: 'pt'
+                }),
+                ephemeral: true
+            });
+        }
     }
-    if (!transactions_payer) {
-    transactionsModel.create({ user_id: interaction.user.id, transactions: [{ id: id, timestamp: timestamp, mensagem: `Enviou ${valor} para \`${user.username} (${user.id})\``}], transactions_ids: [id]})
-    } else {
-    transactions_payer.transactions.push({id: id, timestamp: timestamp, mensagem: `Enviou ${valor} para \`${user.username} (${user.id})\``})
-    transactions_payer.transactions_ids.push(id)
-    transactions_payer.save()
-    }
-    if (!transactions_receiver) {
-    transactionsModel.create({ user_id: user.id, transactions: [{id: id, timestamp: timestamp, mensagem: `Recebeu ${valor} de \`${interaction.user.username} (${interaction.user.id})\``}], transactions_ids: [id]})
-    } else {
-    transactions_receiver.transactions.push({id: id, timestamp: timestamp, mensagem: `Enviou ${valor} para \`${user.username} (${user.id})\``})
-    transactions_receiver.transactions_ids.push(id)
-    transactions_receiver.save()
-}
-interaction.reply({ content: `<:gold_donator:1053256617518440478> | Pronto! ${interaction.user} você pagou ${valor} lunar coins para ${user}`})
+};
 
+async function updateTransactions(userId, transactionData) {
+    try {
+        const userTransactions = await transactionsModel.findOne({ user_id: userId });
 
+        if (!userTransactions) {
+            await transactionsModel.create({
+                user_id: userId,
+                transactions: [transactionData],
+                transactions_ids: [transactionData.id]
+            });
+        } else {
+            userTransactions.transactions.push(transactionData);
+            userTransactions.transactions_ids.push(transactionData.id);
+            await userTransactions.save();
+        }
+    } catch (error) {
+        console.error('Erro ao atualizar transações:', error);
+        throw error;
     }
 }

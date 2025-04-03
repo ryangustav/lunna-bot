@@ -1,10 +1,17 @@
-const { SlashCommandBuilder, ApplicationFlagsBitField } = require("discord.js");
+const { SlashCommandBuilder, ApplicationFlagsBitField, MessageFlags } = require("discord.js");
 const LunarModel = require("../../database/schema/coins_database.js")
+const i18next = require('i18next');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("prompts")
         .setDescription("「💰」Veja quantos prompts você tem disponivel")
+        .setDescriptionLocalizations(
+            { 
+              'en-US': '「💰」See how many prompts you have available',
+              'en-GB': '「💰」See how many prompts you have available',
+            }
+    )
         .setDMPermission(false),
 
     async execute(interaction, client) {
@@ -30,9 +37,18 @@ module.exports = {
         disponiveis_text = disponivel_text.free
         disponiveis_image = disponivel_image.free
     }
+
+    const userLanguage = lunnar_coins.language;
+
         await interaction.reply({
-            content: `💰 | Você possui **${disponiveis_text - lunnar_coins.prompts_used}/${disponiveis_text}** prompts e **${disponiveis_image - lunnar_coins.image_prompts_used}/${disponiveis_image}** image prompts.`,
-            ephemeral: true
+            content: i18next.t(`prompts.message`, { 
+                used_text: disponiveis_text - lunnar_coins.prompts_used,
+                images_used: disponiveis_image - lunnar_coins.image_prompts_used,
+                disponiveis_image: disponiveis_image,
+                disponiveis_text: disponiveis_text,
+                lng: userLanguage 
+            }),
+             flags: MessageFlags.Ephemeral
         });
 
     },

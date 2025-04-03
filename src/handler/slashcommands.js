@@ -45,7 +45,7 @@ module.exports = (client) => {
                 Routes.applicationCommands(client.user.id), {
                 body: client.commandArray
             });
-            console.log(`[LOG]`.yellow + ` ${client.commandArray.length} `.white + `Comando(s) Slash carregado(s)`.green);
+        console.log(`[LOG]`.yellow + ` ${client.commandArray.length} `.white + `Comando(s) Slash carregado(s)`.green);
         } catch (error) {
             console.log(error);
         };

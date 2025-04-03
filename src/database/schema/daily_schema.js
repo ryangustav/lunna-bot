@@ -2,7 +2,7 @@ const { Schema } = require("mongoose");
 const mongoose = require("mongoose");
 
 const daily_schema = new Schema({
-    user_id: Number,
+    user_id: String,
     daily_collected: { type: Boolean, default: false }
 })
 

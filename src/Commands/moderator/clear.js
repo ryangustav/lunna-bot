@@ -1,54 +1,100 @@
-const Discord = require("discord.js");
-const axios = require("axios")
-const getRole = require(`../../util/getRole.js`)
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const LunarModel = require("../../database/schema/coins_database.js");
+const i18next = require('i18next');
+
 module.exports = {
-    data: new Discord.SlashCommandBuilder()
+    data: new SlashCommandBuilder()
         .setName("clear")
         .setDescription("「🛠️」Apague mensagens")
+        .setDescriptionLocalizations({
+            'en-US': '「🛠️」Delete messages',
+            'en-GB': '「🛠️」Delete messages',
+        })
         .setDMPermission(false)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
         .addNumberOption(option => 
             option
-            .setName('quantidade')
-            .setDescription('quantidade que vocÊ quer apagar')
-            .setRequired(true)
+                .setName('quantidade')
+                .setNameLocalizations({
+                    'en-US': 'amount',
+                    'en-GB': 'amount',
+                })
+                .setDescription('Quantidade de mensagens que você quer apagar (1 a 1000)')
+                .setDescriptionLocalizations({
+                    'en-US': 'Amount of messages you want to delete (1 to 1000)',
+                    'en-GB': 'Amount of messages you want to delete (1 to 1000)',
+                })
+                .setRequired(true)
         ),
+
     async execute(interaction, client) {
-  const quantia = interaction.options.getNumber('quantidade');
+        const quantidade = interaction.options.getNumber('quantidade');
+        let lunnar_coins = await LunarModel.findOne({ user_id: interaction.user.id });
+       
+         
+        if (!lunnar_coins) { 
+            lunnar_coins = await LunarModel.create({ user_id: interaction.user.id, coins: 0, isVip: false, prompts_used: 0, language: 'pt', image_prompts_used: 0 }) 
+        }
+ 
+        const language = lunnar_coins.language; 
 
-  //Definições
-const quantidade = quantia / 100;
-const decimais = quantidade.toFixed(2).toString().split('.');
-let dec = decimais[1];
-let Break = false
-let clearnedSize = 0;
-//ifs 
-if (!interaction.member.permissions.has("MANAGE_MESSAGES") || !interaction.member.permissions.has("ADMINSTRATOR")) return interaction.channel.send(":x: | Você não tem permissão para utilizar este comando")
-if (!quantidade || !decimais) return interaction.channel.send(":x: | Você não informou a quantidade de 1 a 1000")
-if (dec === "00") dec++;
-if (quantidade * 100 > 1000 || quantidade === 0) return interaction.channel.send(`:x: | Você so pode apagar de 1 a 1000 mensagens`)
-//Logica
-interaction.reply({ content: `<a:azu_carregando:1122709454291488850> | Apagando...`})
-for (i = 1; i <= decimais[0]; i++) {
-if (decimais === 0) break;
-if (Break === true) break;
-await interaction.channel.bulkDelete(`100`).then(clearned => {
-    if (clearned.size === 0) Break = true
-    clearnedSize = Number(clearnedSize + clearned.size);
-})
-}
+        if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages) || !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.reply({ 
+                content: i18next.t('clear.no_permission', { lng: language }), 
+                ephemeral: true 
+            });
+        }
 
-await interaction.channel.bulkDelete(`${dec}`).then(clearned => {
-    console.log(clearned.size)
-    clearnedSize = Number(clearnedSize + clearned.size);
-})
+        if (!quantidade || quantidade < 1 || quantidade > 1000) {
+            return interaction.reply({ 
+                content: i18next.t('clear.invalid_amount', { lng: language }), 
+                ephemeral: true 
+            });
+        }
 
+        await interaction.reply({ 
+            content: i18next.t('clear.deleting', { lng: language }), 
+            ephemeral: true 
+        });
 
-interaction.channel.send({
-    content: `Pronto! Apaguei ${clearnedSize} mensagens`
-}).then(msg => {
-setTimeout(() => {
-msg.delete()
-}, 10000)
-})
+        let mensagensApagadas = 0;
+        let restante = quantidade;
+
+        try {
+            while (restante > 0) {
+                const apagar = Math.min(restante, 100);
+                const deletadas = await interaction.channel.bulkDelete(apagar, true);
+                mensagensApagadas += deletadas.size;
+                restante -= deletadas.size;
+
+                if (deletadas.size === 0) {
+                    break;
+                }
+            }
+        } catch (error) {
+            if (error.code === 50034) {
+                return interaction.followUp({
+                    content: i18next.t('clear.old_messages', { 
+                        count: mensagensApagadas,
+                        lng: language 
+                    }),
+                    ephemeral: false
+                });
+            } else {
+                console.error(error);
+                return interaction.followUp({
+                    content: i18next.t('clear.error', { lng: language }),
+                    ephemeral: true
+                });
+            }
+        }
+
+        return interaction.followUp({
+            content: i18next.t('clear.success', { 
+                count: mensagensApagadas,
+                lng: language 
+            }),
+            ephemeral: false
+        });
     }
-}
+};

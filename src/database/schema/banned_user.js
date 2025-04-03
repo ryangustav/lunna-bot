@@ -2,7 +2,7 @@ const { Schema } = require("mongoose");
 const mongoose = require("mongoose");
 
 const ban_schema = new Schema({
-    user_id: Number,
+    user_id: String,
     isBanned: {
     type: Boolean, default: 0
     },
